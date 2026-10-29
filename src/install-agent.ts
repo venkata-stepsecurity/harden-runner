@@ -4,6 +4,7 @@ import * as cp from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { verifyChecksum } from "./checksum";
+import { downloadIntAgent } from "./int-agent";
 import { EOL } from "os";
 import { ARM64_WINDOWS_RUNNER_MESSAGE } from "./common";
 import { chownForFolder, getRunnerUser } from "./utils";
@@ -12,10 +13,6 @@ export async function installAgent(
   isTLS: boolean,
   configStr: string
 ): Promise<boolean> {
-  // Note: to avoid github rate limiting
-  const token = core.getInput("token", { required: true });
-  const auth = `token ${token}`;
-
   const variant = process.arch === "x64" ? "amd64" : "arm64";
 
   let downloadPath: string;
@@ -24,21 +21,13 @@ export async function installAgent(
     encoding: "utf8",
   });
 
-  if (isTLS) {
-    downloadPath = await tc.downloadTool(
-      `https://github.com/step-security/agent-ebpf/releases/download/v1.9.5/harden-runner_1.9.5_linux_${variant}.tar.gz`,
-      undefined,
-      auth
-    );
-  } else {
-    downloadPath = await tc.downloadTool(
-      `https://github.com/step-security/agent/releases/download/v0.18.0/agent_0.18.0_linux_${variant}.tar.gz`,
-      undefined,
-      auth
-    );
-  }
-
-  if (!verifyChecksum(downloadPath, isTLS, variant, "linux")) {
+  // int-agent test branch: always install an int build of step-security/agent
+  // from GHCR, whatever the TLS setting, so it can be tested before a release.
+  const intAgentTag = core.getInput("int-agent-tag") || "latest";
+  try {
+    downloadPath = await downloadIntAgent(variant, intAgentTag);
+  } catch (e) {
+    core.setFailed(`int agent download failed: ${e}`);
     return false;
   }
 

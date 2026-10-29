@@ -52,6 +52,10 @@ inputs:
     description: "StepSecurity customer name. Required in GitHub Enterprise Server (GHES) environments for TLS checks, policy fetching, and direct self-hosted VM agent installation."
     required: false
     default: ""
+  int-agent-tag:
+    description: "int-agent test branch only: tag of ghcr.io/step-security/agent/agent-int to install, e.g. latest, pr-<number>, dev-<branch> or a commit SHA"
+    required: false
+    default: "latest"
   server-name:
     description: "GHES server name registered with StepSecurity. Required in GitHub Enterprise Server (GHES) environments for TLS checks, policy fetching, and direct self-hosted VM agent installation."
     required: false

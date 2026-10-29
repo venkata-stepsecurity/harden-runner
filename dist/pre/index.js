@@ -85364,10 +85364,10 @@ function isValidEvent() {
 }
 
 ;// CONCATENATED MODULE: ./src/configs.ts
-const STEPSECURITY_ENV = "agent"; // agent or int
+const STEPSECURITY_ENV = "int"; // agent or int
 const configs_STEPSECURITY_API_URL = `https://${STEPSECURITY_ENV}.api.stepsecurity.io/v1`;
-const STEPSECURITY_TELEMETRY_URL = "https://prod.app-api.stepsecurity.io/v1";
-const STEPSECURITY_WEB_URL = "https://app.stepsecurity.io";
+const STEPSECURITY_TELEMETRY_URL = "https://int.app-api.stepsecurity.io/v1";
+const STEPSECURITY_WEB_URL = "https://int1.stepsecurity.io";
 
 ;// CONCATENATED MODULE: ./src/policy-utils.ts
 var policy_utils_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -85677,6 +85677,84 @@ function verifyChecksum(downloadPath, isTLS, variant, platform, agentType = "def
     return true;
 }
 
+// EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
+var lib = __nccwpck_require__(4844);
+;// CONCATENATED MODULE: ./src/int-agent.ts
+var int_agent_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+
+// Int builds of step-security/agent, published by its INT Release workflow as
+// an OCI artifact with one layer per tarball.
+const INT_AGENT_REGISTRY = "https://ghcr.io";
+const INT_AGENT_REPOSITORY = "step-security/agent/agent-int";
+const OCI_MANIFEST = "application/vnd.oci.image.manifest.v1+json";
+// isValidTag reports whether tag is a valid OCI tag.
+function isValidTag(tag) {
+    return /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(tag);
+}
+// findLayer returns the layer whose title annotation is fileName.
+function findLayer(manifest, fileName) {
+    const layer = (manifest.layers || []).find((l) => { var _a; return ((_a = l.annotations) === null || _a === void 0 ? void 0 : _a["org.opencontainers.image.title"]) === fileName; });
+    if (!layer) {
+        throw new Error(`${fileName} not found in int agent artifact`);
+    }
+    if (!/^sha256:[a-f0-9]{64}$/.test(layer.digest)) {
+        throw new Error(`unsupported digest for ${fileName}: ${layer.digest}`);
+    }
+    return layer;
+}
+// verifyDigest returns true if the sha256 of the file matches the OCI digest.
+function verifyDigest(filePath, digest) {
+    const actual = "sha256:" +
+        external_crypto_.createHash("sha256").update(external_fs_.readFileSync(filePath)).digest("hex");
+    return actual === digest;
+}
+// downloadIntAgent downloads agent_linux_<variant>.tar.gz from the int agent
+// artifact with the given tag, verifies it against its digest and returns the
+// local path.
+function downloadIntAgent(variant, tag) {
+    return int_agent_awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        if (!isValidTag(tag)) {
+            throw new Error(`invalid int agent tag: ${tag}`);
+        }
+        const http = new lib.HttpClient("harden-runner");
+        const tokenRes = yield http.getJson(`${INT_AGENT_REGISTRY}/token?scope=repository:${INT_AGENT_REPOSITORY}:pull`);
+        const token = (_a = tokenRes.result) === null || _a === void 0 ? void 0 : _a.token;
+        if (!token) {
+            throw new Error(`could not get GHCR token (HTTP ${tokenRes.statusCode})`);
+        }
+        const manifestRes = yield http.getJson(`${INT_AGENT_REGISTRY}/v2/${INT_AGENT_REPOSITORY}/manifests/${tag}`, { Authorization: `Bearer ${token}`, Accept: OCI_MANIFEST });
+        if (!manifestRes.result) {
+            throw new Error(`int agent ${INT_AGENT_REPOSITORY}:${tag} not found (HTTP ${manifestRes.statusCode})`);
+        }
+        const fileName = `agent_linux_${variant}.tar.gz`;
+        const layer = findLayer(manifestRes.result, fileName);
+        const revision = ((_b = manifestRes.result.annotations) === null || _b === void 0 ? void 0 : _b["org.opencontainers.image.revision"]) ||
+            "unknown";
+        lib_core.info(`Installing int agent ghcr.io/${INT_AGENT_REPOSITORY}:${tag} (commit ${revision}, ${fileName})`);
+        // GHCR redirects blob downloads to another host; the client drops the
+        // Authorization header on that redirect.
+        const downloadPath = yield tool_cache.downloadTool(`${INT_AGENT_REGISTRY}/v2/${INT_AGENT_REPOSITORY}/blobs/${layer.digest}`, undefined, `Bearer ${token}`);
+        if (!verifyDigest(downloadPath, layer.digest)) {
+            throw new Error(`digest mismatch for ${fileName}, expected ${layer.digest}`);
+        }
+        lib_core.info(`✅ Digest verified: ${layer.digest}`);
+        return downloadPath;
+    });
+}
+
 ;// CONCATENATED MODULE: ./src/install-agent.ts
 var install_agent_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -85696,23 +85774,22 @@ var install_agent_awaiter = (undefined && undefined.__awaiter) || function (this
 
 
 
+
 function installAgent(isTLS, configStr) {
     return install_agent_awaiter(this, void 0, void 0, function* () {
-        // Note: to avoid github rate limiting
-        const token = lib_core.getInput("token", { required: true });
-        const auth = `token ${token}`;
         const variant = process.arch === "x64" ? "amd64" : "arm64";
         let downloadPath;
         external_fs_.appendFileSync(process.env.GITHUB_STATE, `isTLS=${isTLS}${external_os_.EOL}`, {
             encoding: "utf8",
         });
-        if (isTLS) {
-            downloadPath = yield tool_cache.downloadTool(`https://github.com/step-security/agent-ebpf/releases/download/v1.9.5/harden-runner_1.9.5_linux_${variant}.tar.gz`, undefined, auth);
+        // int-agent test branch: always install an int build of step-security/agent
+        // from GHCR, whatever the TLS setting, so it can be tested before a release.
+        const intAgentTag = lib_core.getInput("int-agent-tag") || "latest";
+        try {
+            downloadPath = yield downloadIntAgent(variant, intAgentTag);
         }
-        else {
-            downloadPath = yield tool_cache.downloadTool(`https://github.com/step-security/agent/releases/download/v0.18.0/agent_0.18.0_linux_${variant}.tar.gz`, undefined, auth);
-        }
-        if (!verifyChecksum(downloadPath, isTLS, variant, "linux")) {
+        catch (e) {
+            lib_core.setFailed(`int agent download failed: ${e}`);
             return false;
         }
         const extractPath = yield tool_cache.extractTar(downloadPath);
