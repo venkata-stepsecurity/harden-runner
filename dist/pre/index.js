@@ -85645,7 +85645,7 @@ function installAgent(isTLS, configStr) {
         external_fs_.appendFileSync(process.env.GITHUB_STATE, `isTLS=${isTLS}${external_os_.EOL}`, {
             encoding: "utf8",
         });
-        downloadPath = yield tool_cache.downloadTool(`https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-2235fe6/agent_int-2235fe6_linux_${variant}.tar.gz`, undefined, auth);
+        downloadPath = yield tool_cache.downloadTool(`https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-efd33da/agent_int-efd33da_linux_${variant}.tar.gz`, undefined, auth);
         // if (!verifyChecksum(downloadPath, isTLS, variant, "linux")) {
         //   return false;
         // }
