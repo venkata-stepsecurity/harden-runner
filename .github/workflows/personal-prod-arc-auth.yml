@@ -1,0 +1,33 @@
+name: Personal production ARC telemetry auth
+on:
+  push:
+    branches: [test/arc-telemetry-auth-prod-20261030-primary]
+permissions:
+  contents: read
+run-name: Production ARC authentication - primary
+jobs:
+  telemetry:
+    runs-on: venkat-prod-auth-primary
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Allow collector initialization
+        run: sleep 15
+      - name: Generate bounded DNS, network and HTTPS activity
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            curl --fail --silent --show-error --max-time 20 https://www.google.com/ -o /dev/null
+            curl --fail --silent --show-error --max-time 20 https://api.github.com/zen -o /dev/null
+            sleep 10
+          done
+          git ls-remote https://github.com/actions/checkout HEAD
+      - name: Generate tracked source file write
+        run: |
+          printf '\n// Personal production telemetry validation.\n' >> telemetry_fixture.go
+          test -s telemetry_fixture.go
+          git diff --numstat -- telemetry_fixture.go
+      - name: Allow event delivery
+        run: sleep 20
