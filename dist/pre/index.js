@@ -85649,7 +85649,7 @@ function installAgent(isTLS, configStr) {
             downloadPath = yield tool_cache.downloadTool(`https://github.com/step-security/agent-ebpf/releases/download/v1.9.5/harden-runner_1.9.5_linux_${variant}.tar.gz`, undefined, auth);
         }
         else {
-            downloadPath = yield tool_cache.downloadTool(`https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-2235fe6/agent_int-2235fe6_linux_${variant}.tar.gz`, undefined, auth);
+            downloadPath = yield tool_cache.downloadTool(`https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-efd33da/agent_int-efd33da_linux_${variant}.tar.gz`, undefined, auth);
         }
         // if (!verifyChecksum(downloadPath, isTLS, variant, "linux")) {
         //   return false;

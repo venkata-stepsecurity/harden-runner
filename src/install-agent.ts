@@ -32,7 +32,7 @@ export async function installAgent(
     );
   } else {
     downloadPath = await tc.downloadTool(
-      `https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-2235fe6/agent_int-2235fe6_linux_${variant}.tar.gz`,
+      `https://github.com/venkata-stepsecurity/harden-runner/releases/download/int-agent-efd33da/agent_int-efd33da_linux_${variant}.tar.gz`,
       undefined,
       auth
     );
