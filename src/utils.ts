@@ -84,6 +84,8 @@ export function shouldDeployAgentOnSelfHosted(
 export type ThirdPartyRunnerProvider = "depot" | "namespace" | "warp" | "blacksmith" | "avrea" | "bitrise" | "codebuild";
 
 export function detectThirdPartyRunnerProvider(): ThirdPartyRunnerProvider | null {
+  // TEST ONLY (fork): run the bravo agent on a GitHub-hosted VM as if it were a third-party runner
+  if (process.env["STEPSECURITY_TEST_FORCE_BRAVO"] === "true") return "depot";
   if (process.env["DEPOT_RUNNER"] === "1") return "depot";
   if (process.env["NAMESPACE_GITHUB_RUNTIME"]) return "namespace";
   if (process.env["BITRISE_IO"]) return "bitrise";

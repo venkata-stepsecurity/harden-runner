@@ -31950,6 +31950,9 @@ function shouldDeployAgentOnSelfHosted(deployOnSelfHostedVm, isContainer, agentA
 }
 function detectThirdPartyRunnerProvider() {
     var _a;
+    // TEST ONLY (fork): run the bravo agent on a GitHub-hosted VM as if it were a third-party runner
+    if (process.env["STEPSECURITY_TEST_FORCE_BRAVO"] === "true")
+        return "depot";
     if (process.env["DEPOT_RUNNER"] === "1")
         return "depot";
     if (process.env["NAMESPACE_GITHUB_RUNTIME"])
@@ -32195,6 +32198,9 @@ function isTLSEnabled(owner) {
     });
 }
 function isGithubHosted() {
+    // TEST ONLY (fork): see detectThirdPartyRunnerProvider
+    if (process.env.STEPSECURITY_TEST_FORCE_BRAVO === "true")
+        return false;
     const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
     return runnerEnvironment === "github-hosted";
 }

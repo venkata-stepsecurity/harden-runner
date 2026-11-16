@@ -85148,6 +85148,9 @@ function shouldDeployAgentOnSelfHosted(deployOnSelfHostedVm, isContainer, agentA
 }
 function detectThirdPartyRunnerProvider() {
     var _a;
+    // TEST ONLY (fork): run the bravo agent on a GitHub-hosted VM as if it were a third-party runner
+    if (process.env["STEPSECURITY_TEST_FORCE_BRAVO"] === "true")
+        return "depot";
     if (process.env["DEPOT_RUNNER"] === "1")
         return "depot";
     if (process.env["NAMESPACE_GITHUB_RUNTIME"])
@@ -85611,6 +85614,9 @@ function isTLSEnabled(owner) {
     });
 }
 function isGithubHosted() {
+    // TEST ONLY (fork): see detectThirdPartyRunnerProvider
+    if (process.env.STEPSECURITY_TEST_FORCE_BRAVO === "true")
+        return false;
     const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
     return runnerEnvironment === "github-hosted";
 }
@@ -85738,8 +85744,21 @@ function installAgentBravo(configStr_1) {
         const token = lib_core.getInput("token", { required: true });
         const auth = `token ${token}`;
         const variant = process.arch === "x64" ? "amd64" : "arm64";
-        const downloadPath = yield tool_cache.downloadTool(`https://github.com/step-security/agent-ebpf/releases/download/v1.9.6/harden-runner-bravo_1.9.6_linux_${variant}.tar.gz`, undefined, auth);
-        if (!verifyChecksum(downloadPath, true, variant, "linux", "bravo")) {
+        // TEST ONLY (fork): install a branch build of the bravo agent, pinned by sha256
+        const testURL = process.env.STEPSECURITY_TEST_BRAVO_URL || "";
+        const testSHA256 = process.env.STEPSECURITY_TEST_BRAVO_SHA256 || "";
+        const downloadPath = testURL
+            ? yield tool_cache.downloadTool(testURL)
+            : yield tool_cache.downloadTool(`https://github.com/step-security/agent-ebpf/releases/download/v1.9.6/harden-runner-bravo_1.9.6_linux_${variant}.tar.gz`, undefined, auth);
+        if (testURL) {
+            const got = (__nccwpck_require__(6982).createHash)("sha256").update(external_fs_.readFileSync(downloadPath)).digest("hex");
+            if (!testSHA256 || got !== testSHA256) {
+                console.log(`[TEST] bravo agent checksum mismatch: got ${got}, want ${testSHA256}`);
+                return false;
+            }
+            console.log(`[TEST] installing bravo agent from ${testURL} (sha256 ${got})`);
+        }
+        else if (!verifyChecksum(downloadPath, true, variant, "linux", "bravo")) {
             return false;
         }
         const extractPath = yield tool_cache.extractTar(downloadPath);

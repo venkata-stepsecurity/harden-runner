@@ -74,13 +74,25 @@ export async function installAgentBravo(
   const auth = `token ${token}`;
 
   const variant = process.arch === "x64" ? "amd64" : "arm64";
-  const downloadPath = await tc.downloadTool(
-    `https://github.com/step-security/agent-ebpf/releases/download/v1.9.6/harden-runner-bravo_1.9.6_linux_${variant}.tar.gz`,
-    undefined,
-    auth
-  );
+  // TEST ONLY (fork): install a branch build of the bravo agent, pinned by sha256
+  const testURL = process.env.STEPSECURITY_TEST_BRAVO_URL || "";
+  const testSHA256 = process.env.STEPSECURITY_TEST_BRAVO_SHA256 || "";
+  const downloadPath = testURL
+    ? await tc.downloadTool(testURL)
+    : await tc.downloadTool(
+        `https://github.com/step-security/agent-ebpf/releases/download/v1.9.6/harden-runner-bravo_1.9.6_linux_${variant}.tar.gz`,
+        undefined,
+        auth
+      );
 
-  if (!verifyChecksum(downloadPath, true, variant, "linux", "bravo")) {
+  if (testURL) {
+    const got = require("crypto").createHash("sha256").update(fs.readFileSync(downloadPath)).digest("hex");
+    if (!testSHA256 || got !== testSHA256) {
+      console.log(`[TEST] bravo agent checksum mismatch: got ${got}, want ${testSHA256}`);
+      return false;
+    }
+    console.log(`[TEST] installing bravo agent from ${testURL} (sha256 ${got})`);
+  } else if (!verifyChecksum(downloadPath, true, variant, "linux", "bravo")) {
     return false;
   }
 

@@ -33,6 +33,8 @@ export async function isTLSEnabled(owner: string): Promise<boolean> {
 }
 
 export function isGithubHosted() {
+  // TEST ONLY (fork): see detectThirdPartyRunnerProvider
+  if (process.env.STEPSECURITY_TEST_FORCE_BRAVO === "true") return false;
   const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
   return runnerEnvironment === "github-hosted";
 }
