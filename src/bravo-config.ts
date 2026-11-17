@@ -21,6 +21,10 @@ export function buildBravoConfig(confg: Configuration, ghesSelfHosted = false) {
     disable_file_monitoring: confg.disable_file_monitoring,
     private: confg.private,
     is_github_hosted: !ghesSelfHosted,
+    // TEST ONLY: opt in to file events for the bravo e2e
+    ...(process.env.STEPSECURITY_TEST_ENABLE_FILE_TRACING === "true" && {
+      enable_file_tracing: true,
+    }),
     ...(ghesSelfHosted && {
       customer: confg.customer,
       server_name: confg.server_name,
